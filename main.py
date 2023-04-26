@@ -2,13 +2,12 @@
 Bryce Rothschadl
 Dr. Mukherjee
 COMPSCI 332-01
-2023/04/03
+2023/04/25
 """
 
 import csv
 import math
 import random
-from statistics import mean
 
 
 class Instance:
@@ -43,54 +42,72 @@ def calc_dist(a, b):  # calculates euclidean distance
 
 
 def k_means(data, k, n):
+    # Repeat N times
     for i in range(n):
-        converged = False
+        # centroids = Randomly Create K Centroids from data
         centroids = []
         clusters = []
-        for j in range(k):  # randomly create k centroids from data
+        for j in range(k):
             centroids.append(random.choice(data))
             clusters.append([])
-        p = 200  # stop value
-        while not converged and p > 0:
-            # assign instances to a cluster
+
+        # while centroids not converged (still changing) or have a stop after P iterations:
+        p = 200
+        is_converged = False
+        while p > 0 and not is_converged:
+            # for each data point:
             for x in data:
-                min_dist = float('inf')
-                for j in range(k):
+                # assign data point to the closest centroid(use Euclidean distance again)
+                min_dist = float("inf")
+                closest = -1  # index of closest centroid variable
+                for j in range(len(centroids)):
                     d = calc_dist(x.points, centroids[j].points)
                     if d < min_dist:
-                        print("d:", d, " | md:", min_dist, " | j:", j)
-                        min_dist = j    # set min_dist to the index of the current centroid
-                        x.cluster = min_dist
+                        min_dist = d
                         x.distanceToCluster = d
-                clusters[min_dist].append(x)    # assign instance to closest cluster
+                        x.cluster = j
+                        closest = j
+                clusters[closest].append(x)
 
-            # create new centroids from current clusters
-            new_centroids = []  # initialize list of new centroids
+            # for each centroid:
+            new_centroids = []
+            new_center = Instance([0] * 8)
+            for c in clusters:
+                # set new centroid location to be the mean of all points in this cluster
+                for x in c:
+                    # add up all points respective to index
+                    for j in range(len(x.points)):
+                        new_center.points[j] += x.points[j]
 
-            for x in clusters:
-                new_center = [0]*8
-
-                for points in x:
-                    for temp in range(8):
-                        new_center[temp] += points.points[temp]
-
-                for temp in range(8):
-                    new_center[temp] = new_center[temp] / n
-
+                    # divide by total number of instances to calculate mean position of cluster
+                    for j in range(len(x.points)):
+                        new_center.points[j] /= n
                 new_centroids.append(new_center)
 
-            # print(clusters)
-            if centroids == new_centroids:
-                converged = True
-                print("CONVERGED")
-            p -= 1
+            # test tolerance to see how much the centroids moved
+            tol = 0.0001
+            for nc in range(len(new_centroids)):
+                for j in range(8):
+                    if abs(new_centroids[nc].points[j] - centroids[nc].points[j]) < tol:
+                        # the distance that the centroids moved is less than the
+                        # tolerance value, so the clustering has converged
+                        is_converged = True
+                    else:
+                        centroids = new_centroids
+                        p -= 1
 
-        # calculate objective sum
-        obj_sum = 0
-        for x in data:
-            obj_sum += x.distanceToCluster
+    # Calculate objective(sum of distances of each point to the cluster centroid they are assigned to)
+    obj_sum = 0
+    clusters = []
+    for j in range(n):
+        # objective sum
+        obj_sum += data[j].distanceToCluster
 
-        return obj_sum
+        # clusters
+        clusters.append(data[j].cluster)
+
+    # Save in arrays the objective and the clustering found after the completion of the 2nd for loop
+    return [obj_sum, clusters]
 
 
 def main():
@@ -101,17 +118,24 @@ def main():
     k = 5
     n = len(data)
 
-    # call k means algorithm
-    objective_sum = k_means(data, k, n)
+    # call the k means algorithm
+    k_means_output = k_means(data, k, n)
+    objective_sum = k_means_output[0]
+    clustering = k_means_output[1]
 
     # print output
     print("K value: ", k, '\n')
     print("+---------------+--------------+")
     print("|  Point Index  |  Cluster No  |")
     print("+---------------+--------------+")
-    #
+    for i in range(len(clustering)):
+        # format the output to make it look nice
+        print("|{:13d}".format(i), end="  ")            # index
+        print("|{:12d}".format(clustering[i]), end="")  # cluster
+        print("  |")
     print("+---------------+--------------+\n")
-    print("Objective value of the final solution:", objective_sum)
+    # round the objective value to two decimal places
+    print("Objective value of the final solution: {0:.2f}".format(objective_sum))
 
 
 if __name__ == '__main__':
